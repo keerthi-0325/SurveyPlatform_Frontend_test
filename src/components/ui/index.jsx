@@ -46,16 +46,19 @@ export function EmptyState({ icon: Icon, title, description, action }) {
   );
 }
 
-export function ConfirmDialog({ isOpen, title, message, onConfirm, onCancel }) {
+export function ConfirmDialog({ isOpen, title, message, onConfirm, onCancel, loading = false }) {
   if (!isOpen) return null;
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="bg-white rounded-xl shadow-xl p-6 max-w-sm w-full mx-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={onCancel}>
+      <div className="bg-white rounded-xl shadow-xl p-6 max-w-sm w-full mx-4" onClick={(e) => e.stopPropagation()}>
         <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
         <p className="text-sm text-gray-600 mt-2">{message}</p>
         <div className="flex gap-3 mt-6 justify-end">
-          <button onClick={onCancel} className="btn-secondary">Cancel</button>
-          <button onClick={onConfirm} className="btn-danger">Confirm</button>
+          <button type="button" onClick={onCancel} disabled={loading} className="btn-secondary">Cancel</button>
+          <button type="button" onClick={onConfirm} disabled={loading} className="btn-danger flex items-center gap-2">
+            {loading && <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />}
+            {loading ? 'Deleting…' : 'Confirm'}
+          </button>
         </div>
       </div>
     </div>

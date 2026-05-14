@@ -1,6 +1,6 @@
 import { useParams, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { Mail, Phone, Building2, ClipboardList } from 'lucide-react';
+import { Mail, Phone, Building2, ClipboardList, Briefcase, MapPin } from 'lucide-react';
 import { clientsApi } from '../services/api';
 import { PageHeader, StatusBadge, Spinner } from '../components/ui';
 
@@ -24,12 +24,19 @@ export default function ClientDetailPage() {
           {client.email && <p className="flex items-center gap-2 text-sm text-gray-600"><Mail size={15} className="text-gray-400" />{client.email}</p>}
           {client.phone && <p className="flex items-center gap-2 text-sm text-gray-600"><Phone size={15} className="text-gray-400" />{client.phone}</p>}
           {client.company_name && <p className="flex items-center gap-2 text-sm text-gray-600"><Building2 size={15} className="text-gray-400" />{client.company_name}</p>}
+          {client.job_title && <p className="flex items-center gap-2 text-sm text-gray-600"><Briefcase size={15} className="text-gray-400" />{client.job_title}</p>}
+          {(client.city || client.country) && (
+            <p className="flex items-center gap-2 text-sm text-gray-600">
+              <MapPin size={15} className="text-gray-400" />
+              {[client.city, client.country].filter(Boolean).join(', ')}
+            </p>
+          )}
         </div>
         <div className="card">
           <h3 className="font-semibold text-gray-900 mb-3">Tags</h3>
           <div className="flex gap-2 flex-wrap">
             {client.Tags?.length ? client.Tags.map((t) => (
-              <span key={t.tag_id} className="badge bg-indigo-50 text-indigo-700">{t.tag_name}</span>
+              <span key={t.tag_id} className="badge bg-indigo-50 text-indigo-700" style={{ borderLeft: `3px solid ${t.color || '#6366f1'}` }}>{t.tag_name}</span>
             )) : <p className="text-sm text-gray-400">No tags</p>}
           </div>
         </div>

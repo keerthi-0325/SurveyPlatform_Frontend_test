@@ -1,3 +1,29 @@
+# Dependencies
+node_modules/
+frontend/node_modules/
+
+# Build output
+frontend/build/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Uploads
+uploads/
+
+# Logs
+logs/
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
 # dependencies
 node_modules/
 
@@ -37,4 +63,5 @@ coverage/
 vite.svg
 
 # TypeScript
+*.tsbuildinfo
 *.tsbuildinfo

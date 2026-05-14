@@ -8,11 +8,11 @@ import useAuthStore from '../store/authStore';
 const ROLES = {
   admin:  { label: 'Admin',  icon: Shield,    color: 'bg-red-100 text-red-700 border-red-200',    desc: 'Full access — manage users, delete data, all settings' },
   staff:  { label: 'Staff',  icon: UserCheck, color: 'bg-blue-100 text-blue-700 border-blue-200', desc: 'Create and manage surveys, view all responses' },
-  viewer: { label: 'Viewer', icon: Eye,       color: 'bg-gray-100 text-gray-700 border-gray-200', desc: 'Read-only — view surveys and analytics, no editing' },
+  creator: { label: 'Creator', icon: Eye,       color: 'bg-gray-100 text-gray-700 border-gray-200', desc: 'Read-only — view surveys and analytics, no editing' },
 };
 
 function RoleBadge({ role }) {
-  const cfg = ROLES[role] ?? ROLES.viewer;
+  const cfg = ROLES[role] ?? ROLES.creator;
   const Icon = cfg.icon;
   return (
     <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-xs font-medium ${cfg.color}`}>

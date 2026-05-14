@@ -89,6 +89,10 @@ api.post('/responses/drop-off', data).catch(() => {}),
 
 getOne: (id) =>
 api.get(`/responses/${id}`).then((r) => r.data),
+
+// ✅ Delete a single response by ID
+delete: (id) =>
+api.delete(`/responses/${id}`).then((r) => r.data),
 };
 
 // ─── ANALYTICS ────────────────────────────────────────

@@ -70,33 +70,42 @@ function SentimentGauge({ score }) {
 // ─── Drop-off funnel ─────────────────────────────────────────────────────────
 function DropOffFunnel({ data = [] }) {
   if (!data.length) return <p className="text-sm text-gray-400 py-8 text-center">No drop-off data yet. Respondents must start the survey to generate this report.</p>;
-  const maxReached = Math.max(...data.map((d) => d.reached), 1);
   return (
-    <div className="space-y-2">
-      {data.map((q, i) => {
-        const answerPct  = q.reached > 0 ? (q.answered / q.reached) * 100 : 0;
-        const dropColor  = q.drop_rate > 30 ? '#ef4444' : q.drop_rate > 15 ? '#f59e0b' : '#10b981';
-        return (
-          <div key={q.question_id} className="bg-gray-50 rounded-xl p-3">
-            <div className="flex items-start gap-3 mb-2">
-              <span className="text-xs font-bold text-indigo-600 w-7 flex-shrink-0 mt-0.5">Q{i + 1}</span>
-              <div className="flex-1 min-w-0">
-                <p className="text-xs font-medium text-gray-800 truncate">{q.question_text}</p>
-                <div className="flex gap-3 mt-1 text-xs text-gray-500 flex-wrap">
-                  <span>👁 Reached: <strong>{q.reached}</strong></span>
-                  <span>✅ Answered: <strong>{q.answered}</strong></span>
-                  <span style={{ color: dropColor }}>⬇ Dropped: <strong>{q.dropped_here}</strong> ({q.drop_rate}%)</span>
-                  {q.avg_time_secs && <span>⏱ Avg time: <strong>{fmtSecs(q.avg_time_secs)}</strong></span>}
-                </div>
-              </div>
-            </div>
-            <div className="flex gap-1 h-2 rounded-full overflow-hidden bg-gray-200">
-              <div className="h-full bg-indigo-500 transition-all" style={{ width: `${answerPct}%` }} />
-              <div className="h-full transition-all" style={{ width: `${100 - answerPct}%`, background: dropColor, opacity: 0.5 }} />
-            </div>
-          </div>
-        );
-      })}
+    <div className="overflow-x-auto">
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="border-b border-gray-200">
+            {['Question', 'Reached', 'Answered', 'Dropped', 'Drop %', 'Avg Time'].map((h) => (
+              <th key={h} className="text-left py-2 px-3 text-xs font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap">
+                {h}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-gray-100">
+          {data.map((q, i) => {
+            const dropColor = q.drop_rate > 30 ? 'text-red-600' : q.drop_rate > 15 ? 'text-yellow-600' : 'text-green-600';
+            const dropBg    = q.drop_rate > 30 ? 'bg-red-50'   : q.drop_rate > 15 ? 'bg-yellow-50'   : '';
+            return (
+              <tr key={q.question_id} className={`hover:bg-gray-50 transition-colors ${dropBg}`}>
+                <td className="py-3 px-3 max-w-xs">
+                  <div className="flex items-start gap-2">
+                    <span className="text-xs font-bold text-indigo-600 flex-shrink-0 mt-0.5">Q{i + 1}</span>
+                    <span className="text-gray-800 text-xs leading-relaxed line-clamp-2">{q.question_text}</span>
+                  </div>
+                </td>
+                <td className="py-3 px-3 text-center font-semibold text-gray-700">{q.reached}</td>
+                <td className="py-3 px-3 text-center font-semibold text-gray-700">{q.answered}</td>
+                <td className="py-3 px-3 text-center font-semibold text-gray-700">{q.dropped_here}</td>
+                <td className={`py-3 px-3 text-center font-bold ${dropColor}`}>{q.drop_rate}%</td>
+                <td className="py-3 px-3 text-center text-gray-500 text-xs">
+                  {q.avg_time_secs ? fmtSecs(q.avg_time_secs) : <span className="text-gray-300">—</span>}
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
     </div>
   );
 }
@@ -118,7 +127,7 @@ export default function AdvancedAnalyticsPage() {
     staleTime: 30_000,
   });
 
-  const selectedSurvey = surveys.find((s) => s.survey_id === surveyId);
+  const selectedSurvey = surveys.find((s) => String(s.survey_id) === surveyId);
 
   return (
     <div className="p-8">
@@ -137,8 +146,8 @@ export default function AdvancedAnalyticsPage() {
         >
           <option value="">Choose a survey…</option>
           {surveys.map((s) => (
-            <option key={s.survey_id} value={s.survey_id}>
-              {s.title} ({s.status})
+            <option key={s.survey_id} value={String(s.survey_id)}>
+              {s.title} — {s.status}
             </option>
           ))}
         </select>

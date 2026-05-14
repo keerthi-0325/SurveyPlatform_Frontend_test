@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Plus, Trash2, GripVertical, Settings } from 'lucide-react';
+import { Plus, Trash2, GripVertical } from 'lucide-react';
 import { surveysApi } from '../services/api';
 import { PageHeader, Spinner } from '../components/ui';
 
@@ -27,18 +27,18 @@ function QuestionCard({ index, remove, control, register, watch, errors }) {
 
   return (
     <div className="card border-l-4 border-l-indigo-400">
-      <div className="flex items-start gap-3 mb-4">
-        <GripVertical size={18} className="text-gray-300 mt-2 flex-shrink-0" />
-        <div className="flex-1 space-y-3">
+      <div className="flex items-start gap-2 sm:gap-3 mb-4">
+        <GripVertical size={18} className="text-gray-300 mt-2 flex-shrink-0 hidden sm:block" />
+        <div className="flex-1 space-y-3 min-w-0">
 
-          {/* Row 1: question text + type */}
-          <div className="flex gap-3">
-            <div className="flex-1">
+          {/* Question text + type — stacked on mobile, row on sm+ */}
+          <div className="flex flex-col sm:flex-row gap-3">
+            <div className="flex-1 min-w-0">
               <label className="label">Question {index + 1} *</label>
               <input className="input" placeholder="Enter your question…"
                 {...register(`questions.${index}.question_text`, { required: true })} />
             </div>
-            <div className="w-48">
+            <div className="w-full sm:w-48">
               <label className="label">Type</label>
               <select className="input" {...register(`questions.${index}.question_type`)}>
                 {QUESTION_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
@@ -53,7 +53,7 @@ function QuestionCard({ index, remove, control, register, watch, errors }) {
               {...register(`questions.${index}.helper_text`)} />
           </div>
 
-          {/* Placeholder (for text type) */}
+          {/* Placeholder */}
           {qType === 'text' && (
             <div>
               <label className="label">Placeholder text</label>
@@ -62,14 +62,14 @@ function QuestionCard({ index, remove, control, register, watch, errors }) {
             </div>
           )}
 
-          {/* Min/Max for rating/scale */}
+          {/* Min/Max — stacked on mobile */}
           {hasRange && (
-            <div className="flex gap-4">
-              <div className="w-32">
+            <div className="flex gap-3 sm:gap-4">
+              <div className="flex-1 sm:w-32 sm:flex-none">
                 <label className="label">Min value</label>
                 <input type="number" className="input" defaultValue={1} {...register(`questions.${index}.min_value`)} />
               </div>
-              <div className="w-32">
+              <div className="flex-1 sm:w-32 sm:flex-none">
                 <label className="label">Max value</label>
                 <input type="number" className="input" defaultValue={qType === 'scale' ? 10 : 5}
                   {...register(`questions.${index}.max_value`)} />
@@ -77,15 +77,15 @@ function QuestionCard({ index, remove, control, register, watch, errors }) {
             </div>
           )}
 
-          {/* Section label */}
-          <div className="flex gap-4 items-center">
+          {/* Section + Required */}
+          <div className="flex flex-col sm:flex-row gap-3 sm:items-end">
             <div className="flex-1">
               <label className="label">Section / Group</label>
               <input className="input text-sm" placeholder="e.g. Part A, Demographics…"
                 {...register(`questions.${index}.section`)} />
             </div>
-            <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer mt-5">
-              <input type="checkbox" className="rounded" {...register(`questions.${index}.is_required`)} />
+            <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer sm:mb-1 touch-manipulation">
+              <input type="checkbox" className="rounded w-4 h-4" {...register(`questions.${index}.is_required`)} />
               Required
             </label>
           </div>
@@ -96,24 +96,26 @@ function QuestionCard({ index, remove, control, register, watch, errors }) {
               <p className="text-xs font-medium text-gray-500 uppercase">Answer Options</p>
               {options.map((opt, oi) => (
                 <div key={opt.id} className="flex gap-2">
-                  <input className="input flex-1" placeholder={`Option ${oi + 1}`}
+                  <input className="input flex-1 min-w-0" placeholder={`Option ${oi + 1}`}
                     {...register(`questions.${index}.options.${oi}.option_text`, { required: true })} />
-                  <input className="input w-28 text-sm text-gray-500" placeholder="Value (opt)"
+                  <input className="input w-20 sm:w-28 text-sm text-gray-500" placeholder="Value"
                     {...register(`questions.${index}.options.${oi}.option_value`)} />
-                  <button type="button" onClick={() => removeOpt(oi)} className="text-gray-400 hover:text-red-500 transition-colors">
+                  <button type="button" onClick={() => removeOpt(oi)}
+                    className="text-gray-400 hover:text-red-500 transition-colors p-1 touch-manipulation flex-shrink-0">
                     <Trash2 size={15} />
                   </button>
                 </div>
               ))}
               <button type="button" onClick={() => append({ option_text: '', option_value: '' })}
-                className="text-sm text-indigo-600 hover:underline flex items-center gap-1">
+                className="text-sm text-indigo-600 hover:underline flex items-center gap-1 touch-manipulation py-1">
                 <Plus size={14} /> Add option
               </button>
             </div>
           )}
         </div>
 
-        <button type="button" onClick={() => remove(index)} className="text-gray-400 hover:text-red-500 transition-colors mt-1">
+        <button type="button" onClick={() => remove(index)}
+          className="text-gray-400 hover:text-red-500 transition-colors mt-1 p-1 touch-manipulation flex-shrink-0">
           <Trash2 size={16} />
         </button>
       </div>
@@ -174,12 +176,12 @@ export default function SurveyCreatePage() {
 
   const createMutation = useMutation({
     mutationFn: surveysApi.create,
-    onSuccess: (data) => { qc.invalidateQueries(['surveys']); navigate(`/app/surveys/${data.survey_id}`); },
+    onSuccess: (data) => { qc.invalidateQueries({ queryKey: ['surveys'] }); navigate(`/app/surveys/${data.survey_id}`); },
   });
 
   const updateMutation = useMutation({
     mutationFn: (data) => surveysApi.update(id, data),
-    onSuccess: () => { qc.invalidateQueries(['surveys']); navigate(`/app/surveys/${id}`); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['surveys'] }); navigate(`/app/surveys/${id}`); },
   });
 
   const onSubmit = (data) => {
@@ -190,7 +192,7 @@ export default function SurveyCreatePage() {
   const isPending = createMutation.isPending || updateMutation.isPending;
 
   return (
-    <div className="p-8 max-w-3xl">
+    <div className="p-4 sm:p-6 lg:p-8 max-w-3xl">
       <PageHeader
         title={isEdit ? 'Edit Survey' : 'Create Survey'}
         subtitle={isEdit ? 'Changes will create a new version of the survey.' : 'Build your survey and add questions.'}
@@ -215,7 +217,8 @@ export default function SurveyCreatePage() {
               {...register('description')} />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          {/* Grid — 1 col on mobile, 2 cols on sm+ */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="label">Category</label>
               <select className="input" {...register('category')}>
@@ -263,7 +266,7 @@ export default function SurveyCreatePage() {
               <label className="label">End Date</label>
               <input type="date" className="input" {...register('end_date')} />
             </div>
-            <div>
+            <div className="sm:col-span-2 sm:max-w-xs">
               <label className="label">Max Responses</label>
               <input type="number" className="input" placeholder="Leave blank for unlimited"
                 {...register('max_responses')} />
@@ -282,18 +285,18 @@ export default function SurveyCreatePage() {
               placeholder="Shown after submission…" {...register('thank_you_message')} />
           </div>
 
-          {/* Toggles */}
-          <div className="flex flex-wrap gap-6 pt-1">
-            <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
-              <input type="checkbox" className="rounded" {...register('is_anonymous')} />
+          {/* Toggles — vertical on mobile */}
+          <div className="flex flex-col sm:flex-row sm:flex-wrap gap-3 sm:gap-6 pt-1">
+            <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer touch-manipulation">
+              <input type="checkbox" className="rounded w-4 h-4" {...register('is_anonymous')} />
               Anonymous responses
             </label>
-            <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
-              <input type="checkbox" className="rounded" {...register('allow_multiple')} />
+            <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer touch-manipulation">
+              <input type="checkbox" className="rounded w-4 h-4" {...register('allow_multiple')} />
               Allow multiple submissions
             </label>
-            <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
-              <input type="checkbox" className="rounded" {...register('show_progress')} />
+            <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer touch-manipulation">
+              <input type="checkbox" className="rounded w-4 h-4" {...register('show_progress')} />
               Show progress bar
             </label>
           </div>
@@ -313,18 +316,19 @@ export default function SurveyCreatePage() {
           <button
             type="button"
             onClick={() => append({ question_text: '', helper_text: '', question_type: 'text', is_required: false, section: '', options: [] })}
-            className="w-full border-2 border-dashed border-gray-300 hover:border-indigo-400 text-gray-500 hover:text-indigo-600 rounded-xl py-3 flex items-center justify-center gap-2 text-sm font-medium transition-colors"
+            className="w-full border-2 border-dashed border-gray-300 hover:border-indigo-400 text-gray-500 hover:text-indigo-600 rounded-xl py-4 flex items-center justify-center gap-2 text-sm font-medium transition-colors touch-manipulation"
           >
             <Plus size={16} /> Add Question
           </button>
         </div>
 
-        <div className="flex gap-3">
-          <button type="submit" disabled={isPending} className="btn-primary flex items-center gap-2">
+        {/* Action buttons — stacked on mobile */}
+        <div className="flex flex-col sm:flex-row gap-3">
+          <button type="submit" disabled={isPending} className="btn-primary flex items-center justify-center gap-2 py-3 sm:py-2 touch-manipulation">
             {isPending && <Spinner size={16} />}
             {isEdit ? 'Save & Create New Version' : 'Create Survey'}
           </button>
-          <button type="button" onClick={() => navigate(-1)} className="btn-secondary">Cancel</button>
+          <button type="button" onClick={() => navigate(-1)} className="btn-secondary py-3 sm:py-2 touch-manipulation">Cancel</button>
         </div>
       </form>
     </div>

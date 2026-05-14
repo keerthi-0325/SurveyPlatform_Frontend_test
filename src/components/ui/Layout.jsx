@@ -92,7 +92,7 @@ export default function Layout() {
   const ROLE_COLORS = {
     admin:  'bg-red-100 text-red-700',
     staff:  'bg-blue-100 text-blue-700',
-    viewer: 'bg-gray-100 text-gray-600',
+    creator: 'bg-gray-100 text-gray-600',
   };
 
   return (

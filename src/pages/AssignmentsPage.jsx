@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { Plus, ClipboardList } from 'lucide-react';
@@ -25,28 +26,40 @@ export default function AssignmentsPage() {
       notify_email: data.notify_email === 'true' || data.notify_email === true,
       notify_sms: data.notify_sms === 'true' || data.notify_sms === true,
     }),
-    onSuccess: () => { qc.invalidateQueries(['assignments']); setShowModal(false); reset(); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['assignments'] }); setShowModal(false); reset(); },
   });
 
   const statusMutation = useMutation({
     mutationFn: ({ id, status }) => assignmentsApi.updateStatus(id, status),
-    onSuccess: () => qc.invalidateQueries(['assignments']),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['assignments'] }),
   });
 
   const columns = [
-    { key: 'survey',    label: 'Survey',   render: (r) => <span className="font-medium">{r.Survey?.title}</span> },
-    { key: 'client',    label: 'Client',   render: (r) => r.Client?.name },
-    { key: 'company',   label: 'Company',  render: (r) => r.Client?.company_name || '—' },
+    { key: 'survey',    label: 'Survey',   render: (r) => <span className="font-semibold text-gray-900">{r.Survey?.title}</span> },
+    { key: 'client',    label: 'Client',   render: (r) => (
+      <Link to={`/app/clients/${r.client_id}`} className="text-indigo-600 hover:underline font-medium">
+        {r.Client?.name}
+      </Link>
+    )},
+    { key: 'company',   label: 'Company',  render: (r) => r.Client?.company_name || <span className="text-gray-400 text-xs">—</span> },
     { key: 'priority',  label: 'Priority', render: (r) => (
-      <span className={`badge ${r.priority === 'high' ? 'bg-red-100 text-red-700' : r.priority === 'medium' ? 'bg-yellow-100 text-yellow-700' : 'bg-gray-100 text-gray-600'}`}>
+      <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${r.priority === 'high' ? 'bg-red-100 text-red-700' : r.priority === 'medium' ? 'bg-yellow-100 text-yellow-700' : 'bg-gray-100 text-gray-600'}`}>
         {r.priority || 'medium'}
       </span>
     )},
-    { key: 'due_date',  label: 'Due Date', render: (r) => r.due_date ? new Date(r.due_date).toLocaleDateString() : '—' },
-    { key: 'assigned',  label: 'Assigned', render: (r) => new Date(r.assigned_at).toLocaleDateString() },
+    { key: 'due_date',  label: 'Due Date', render: (r) => {
+      if (!r.due_date) return <span className="text-gray-400 text-xs">—</span>;
+      const d = new Date(r.due_date);
+      if (isNaN(d.getTime())) return <span className="text-gray-400 text-xs">—</span>;
+      return `${d.getDate()}/${d.getMonth() + 1}/${d.getFullYear()}`;
+    }},
+    { key: 'assigned',  label: 'Assigned', render: (r) => {
+      const d = new Date(r.assigned_at);
+      return `${d.getDate()}/${d.getMonth() + 1}/${d.getFullYear()}`;
+    }},
     { key: 'status',    label: 'Status',   render: (r) => <StatusBadge status={r.status} /> },
     { key: 'actions',   label: 'Update',   render: (r) => (
-      <select className="input py-1 text-xs w-36" value={r.status}
+      <select className="border border-gray-300 rounded-lg px-2 py-1 text-xs text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white" value={r.status}
         onChange={(e) => statusMutation.mutate({ id: r.assignment_id, status: e.target.value })}
         onClick={(e) => e.stopPropagation()}>
         <option value="pending">Pending</option>
@@ -96,7 +109,9 @@ export default function AssignmentsPage() {
                 <select className="input" {...register('client_id', { required: true })}>
                   <option value="">Select client…</option>
                   {clients.map((c) => (
-                    <option key={c.client_id} value={c.client_id}>{c.name} — {c.company_name || c.email}</option>
+                    <option key={c.client_id} value={c.client_id}>
+                      {c.name}{c.company_name ? ` (${c.company_name})` : c.email ? ` — ${c.email}` : ''}
+                    </option>
                   ))}
                 </select>
               </div>

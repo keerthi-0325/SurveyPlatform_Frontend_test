@@ -1,14 +1,13 @@
 import { useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Edit, BarChart2, Copy, Check, QrCode, Download,
-  Users, FileText, RefreshCw, FileDown, Loader2,
+  Users, FileText, RefreshCw, FileDown, Loader2, Trash2,
 } from 'lucide-react';
-import { surveysApi } from '../services/api';
-import { PageHeader, StatusBadge, Spinner } from '../components/ui';
+import { surveysApi, responsesApi } from '../services/api';
+import { PageHeader, StatusBadge, Spinner, ConfirmDialog } from '../components/ui';
 
-// ─── PDF download helper ──────────────────────────────────────────────────────
 function downloadBlob(blob, filename) {
   const url = URL.createObjectURL(blob);
   const a   = document.createElement('a');
@@ -20,12 +19,13 @@ function downloadBlob(blob, filename) {
   URL.revokeObjectURL(url);
 }
 
-// ─── PDF Export Button ────────────────────────────────────────────────────────
 function PDFExportButton({ surveyId, surveyTitle }) {
-  const [loading, setLoading] = useState(null); // 'report' | 'form' | null
+  const [loading, setLoading] = useState(null);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   const handleExport = async (type) => {
     setLoading(type);
+    setMenuOpen(false);
     try {
       const blob = await surveysApi.exportPDF(surveyId, type);
       const label = type === 'report' ? 'Response-Report' : 'Blank-Form';
@@ -39,51 +39,50 @@ function PDFExportButton({ surveyId, surveyTitle }) {
   };
 
   return (
-    <div className="relative group">
+    <div className="relative">
       <button
         disabled={!!loading}
-        className="btn-secondary flex items-center gap-1.5"
-        onClick={() => handleExport('report')}
+        className="btn-secondary flex items-center gap-1.5 touch-manipulation"
+        onClick={() => setMenuOpen((v) => !v)}
       >
-        {loading ? (
-          <Loader2 size={14} className="animate-spin" />
-        ) : (
-          <FileDown size={14} />
-        )}
-        {loading === 'report' ? 'Generating…' : loading === 'form' ? 'Generating…' : 'Export PDF'}
+        {loading ? <Loader2 size={14} className="animate-spin" /> : <FileDown size={14} />}
+        {loading ? 'Generating…' : 'Export PDF'}
       </button>
 
-      {/* Dropdown on hover */}
-      <div className="absolute right-0 top-full mt-1 w-52 bg-white border border-gray-200 rounded-xl shadow-lg z-20 hidden group-hover:block">
-        <button
-          disabled={!!loading}
-          onClick={() => handleExport('report')}
-          className="w-full flex items-center gap-2.5 px-4 py-3 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-700 rounded-t-xl transition-colors"
-        >
-          {loading === 'report' ? <Loader2 size={15} className="animate-spin text-indigo-500" /> : <FileDown size={15} className="text-indigo-500" />}
-          <div className="text-left">
-            <p className="font-medium">Response Report</p>
-            <p className="text-xs text-gray-400">All answers + analytics</p>
+      {menuOpen && (
+        <>
+          <div className="fixed inset-0 z-10" onClick={() => setMenuOpen(false)} />
+          <div className="absolute right-0 top-full mt-1 w-52 bg-white border border-gray-200 rounded-xl shadow-lg z-20">
+            <button
+              disabled={!!loading}
+              onClick={() => handleExport('report')}
+              className="w-full flex items-center gap-2.5 px-4 py-3 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-700 rounded-t-xl transition-colors touch-manipulation"
+            >
+              {loading === 'report' ? <Loader2 size={15} className="animate-spin text-indigo-500" /> : <FileDown size={15} className="text-indigo-500" />}
+              <div className="text-left">
+                <p className="font-medium">Response Report</p>
+                <p className="text-xs text-gray-400">All answers + analytics</p>
+              </div>
+            </button>
+            <div className="border-t border-gray-100" />
+            <button
+              disabled={!!loading}
+              onClick={() => handleExport('form')}
+              className="w-full flex items-center gap-2.5 px-4 py-3 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-700 rounded-b-xl transition-colors touch-manipulation"
+            >
+              {loading === 'form' ? <Loader2 size={15} className="animate-spin text-indigo-500" /> : <FileText size={15} className="text-indigo-500" />}
+              <div className="text-left">
+                <p className="font-medium">Blank Form</p>
+                <p className="text-xs text-gray-400">Printable questions only</p>
+              </div>
+            </button>
           </div>
-        </button>
-        <div className="border-t border-gray-100" />
-        <button
-          disabled={!!loading}
-          onClick={() => handleExport('form')}
-          className="w-full flex items-center gap-2.5 px-4 py-3 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-700 rounded-b-xl transition-colors"
-        >
-          {loading === 'form' ? <Loader2 size={15} className="animate-spin text-indigo-500" /> : <FileText size={15} className="text-indigo-500" />}
-          <div className="text-left">
-            <p className="font-medium">Blank Form</p>
-            <p className="text-xs text-gray-400">Printable questions only</p>
-          </div>
-        </button>
-      </div>
+        </>
+      )}
     </div>
   );
 }
 
-// ─── QR Panel ─────────────────────────────────────────────────────────────────
 function QRPanel({ surveyId, publicLink }) {
   const [show, setShow]     = useState(false);
   const [copied, setCopied] = useState(false);
@@ -103,24 +102,24 @@ function QRPanel({ surveyId, publicLink }) {
 
   const downloadQR = () => {
     if (!qr?.dataUrl) return;
-    downloadBlob(
-      dataURLtoBlob(qr.dataUrl),
-      `survey-${surveyId}-qr.png`
-    );
+    downloadBlob(dataURLtoBlob(qr.dataUrl), `survey-${surveyId}-qr.png`);
   };
 
   return (
     <div className="card mb-6">
       <p className="text-sm font-semibold text-gray-700 mb-3">Share Survey</p>
-      <div className="flex gap-2 flex-wrap">
+      {/* Stack on mobile: link on top, buttons below */}
+      <div className="flex flex-col sm:flex-row gap-2">
         <input readOnly className="input text-xs text-gray-500 flex-1 min-w-0" value={publicLink} />
-        <button onClick={copyLink} className="btn-secondary flex items-center gap-1.5 shrink-0">
-          {copied ? <><Check size={14} className="text-green-600" />Copied</> : <><Copy size={14} />Copy</>}
-        </button>
-        <button onClick={() => setShow((v) => !v)} className="btn-secondary flex items-center gap-1.5 shrink-0">
-          <QrCode size={14} />
-          {show ? 'Hide QR' : 'Show QR'}
-        </button>
+        <div className="flex gap-2">
+          <button onClick={copyLink} className="btn-secondary flex items-center gap-1.5 flex-1 sm:flex-none justify-center touch-manipulation">
+            {copied ? <><Check size={14} className="text-green-600" />Copied</> : <><Copy size={14} />Copy</>}
+          </button>
+          <button onClick={() => setShow((v) => !v)} className="btn-secondary flex items-center gap-1.5 flex-1 sm:flex-none justify-center touch-manipulation">
+            <QrCode size={14} />
+            {show ? 'Hide QR' : 'QR'}
+          </button>
+        </div>
       </div>
 
       {show && (
@@ -130,15 +129,15 @@ function QRPanel({ surveyId, publicLink }) {
           ) : qr?.dataUrl ? (
             <>
               <img src={qr.dataUrl} alt="Survey QR Code"
-                className="w-52 h-52 rounded-xl shadow-md border border-gray-100" />
+                className="w-48 h-48 sm:w-52 sm:h-52 rounded-xl shadow-md border border-gray-100" />
               <p className="text-xs text-gray-400 text-center">Scan to open the survey</p>
-              <div className="flex gap-2">
-                <button onClick={downloadQR} className="btn-secondary flex items-center gap-1.5 text-xs">
+              <div className="flex gap-2 flex-wrap justify-center">
+                <button onClick={downloadQR} className="btn-secondary flex items-center gap-1.5 text-xs touch-manipulation">
                   <Download size={13} /> Download PNG
                 </button>
                 <a href={`${import.meta.env.VITE_API_URL}/surveys/${surveyId}/qr?format=svg`}
                   download={`survey-${surveyId}-qr.svg`}
-                  className="btn-secondary flex items-center gap-1.5 text-xs">
+                  className="btn-secondary flex items-center gap-1.5 text-xs touch-manipulation">
                   <Download size={13} /> Download SVG
                 </a>
               </div>
@@ -152,7 +151,6 @@ function QRPanel({ surveyId, publicLink }) {
   );
 }
 
-// dataURL → Blob helper (for QR PNG download)
 function dataURLtoBlob(dataUrl) {
   const [header, data] = dataUrl.split(',');
   const mime = header.match(/:(.*?);/)[1];
@@ -162,12 +160,22 @@ function dataURLtoBlob(dataUrl) {
   return new Blob([arr], { type: mime });
 }
 
-// ─── Responses Table ──────────────────────────────────────────────────────────
 function ResponsesTable({ surveyId }) {
+  const qc = useQueryClient();
+  const [deleteResponseId, setDeleteResponseId] = useState(null);
+
   const { data: responses = [], isLoading, refetch, isFetching } = useQuery({
     queryKey:        ['responses', surveyId],
     queryFn:         () => surveysApi.getResponses(surveyId),
     refetchInterval: 30_000,
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id) => responsesApi.delete(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['responses', surveyId] });
+      setDeleteResponseId(null);
+    },
   });
 
   if (isLoading) return (
@@ -182,7 +190,7 @@ function ResponsesTable({ surveyId }) {
           Responses ({responses.length})
         </h2>
         <button onClick={() => refetch()} disabled={isFetching}
-          className="btn-secondary flex items-center gap-1.5 text-xs">
+          className="btn-secondary flex items-center gap-1.5 text-xs touch-manipulation">
           <RefreshCw size={13} className={isFetching ? 'animate-spin' : ''} /> Refresh
         </button>
       </div>
@@ -193,12 +201,12 @@ function ResponsesTable({ surveyId }) {
           <p className="text-sm">No responses yet. Share the link or QR code above.</p>
         </div>
       ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+        <div className="overflow-x-auto -mx-6 px-6">
+          <table className="w-full text-sm min-w-[500px]">
             <thead>
               <tr className="border-b border-gray-200">
-                {['#', 'Submitted', 'Answers', 'IP', 'Status'].map((h) => (
-                  <th key={h} className="text-left py-2 px-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">{h}</th>
+                {['#', 'Submitted', 'Answers', 'IP', 'Status', ''].map((h) => (
+                  <th key={h} className="text-left py-2 px-3 text-xs font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap">{h}</th>
                 ))}
               </tr>
             </thead>
@@ -206,7 +214,7 @@ function ResponsesTable({ surveyId }) {
               {responses.map((r, i) => (
                 <tr key={r.response_id} className="hover:bg-gray-50 transition-colors">
                   <td className="py-2.5 px-3 text-gray-500 font-mono text-xs">{i + 1}</td>
-                  <td className="py-2.5 px-3 text-gray-700 text-xs">
+                  <td className="py-2.5 px-3 text-gray-700 text-xs whitespace-nowrap">
                     {new Date(r.submitted_at).toLocaleString()}
                   </td>
                   <td className="py-2.5 px-3">
@@ -229,9 +237,18 @@ function ResponsesTable({ surveyId }) {
                       )}
                     </div>
                   </td>
-                  <td className="py-2.5 px-3 text-gray-400 text-xs font-mono">{r.ip_address || '—'}</td>
+                  <td className="py-2.5 px-3 text-gray-400 text-xs font-mono whitespace-nowrap">{r.ip_address || '—'}</td>
                   <td className="py-2.5 px-3">
                     <StatusBadge status={r.is_complete ? 'completed' : 'pending'} />
+                  </td>
+                  <td className="py-2.5 px-3">
+                    <button
+                      onClick={() => setDeleteResponseId(r.response_id)}
+                      className="text-gray-300 hover:text-red-500 p-1 rounded transition-colors"
+                      title="Delete response"
+                    >
+                      <Trash2 size={14} />
+                    </button>
                   </td>
                 </tr>
               ))}
@@ -239,17 +256,40 @@ function ResponsesTable({ surveyId }) {
           </table>
         </div>
       )}
+
+      <ConfirmDialog
+        isOpen={!!deleteResponseId}
+        title="Delete Response"
+        message="This will permanently delete this response. This cannot be undone."
+        onConfirm={() => deleteMutation.mutate(deleteResponseId)}
+        onCancel={() => setDeleteResponseId(null)}
+      />
     </div>
   );
 }
 
-// ─── Main Page ────────────────────────────────────────────────────────────────
 export default function SurveyDetailPage() {
   const { id } = useParams();
+  const navigate = useNavigate();
+  const qc = useQueryClient();
+  const [showDeleteSurvey, setShowDeleteSurvey] = useState(false);
+  const [deleteError, setDeleteError] = useState(null);
 
   const { data: survey, isLoading } = useQuery({
     queryKey: ['surveys', id],
     queryFn:  () => surveysApi.getOne(id),
+  });
+
+  const deleteSurveyMutation = useMutation({
+    mutationFn: () => surveysApi.delete(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['surveys'] });
+      navigate('/app/surveys');
+    },
+    onError: (err) => {
+      setShowDeleteSurvey(false);
+      setDeleteError(err?.response?.data?.error || 'Delete failed. You may not have permission.');
+    },
   });
 
   if (isLoading) return (
@@ -261,41 +301,47 @@ export default function SurveyDetailPage() {
   const publicLink    = `${window.location.origin}/respond/${id}`;
 
   return (
-    <div className="p-8 max-w-5xl">
+    <div className="p-4 sm:p-6 lg:p-8 max-w-5xl">
       <PageHeader
         title={survey.title}
         subtitle={survey.description}
         action={
-          <div className="flex gap-2 items-center">
-            <Link to={`/app/surveys/${id}/edit`} className="btn-secondary flex items-center gap-2">
+          /* Wrap in scrollable row on mobile */
+          <div className="flex gap-2 items-center flex-wrap">
+            <Link to={`/app/surveys/${id}/edit`} className="btn-secondary flex items-center gap-2 touch-manipulation">
               <Edit size={15} /> Edit
             </Link>
-            <Link to="/app/analytics" className="btn-secondary flex items-center gap-2">
+            <Link to="/app/analytics" className="btn-secondary flex items-center gap-2 touch-manipulation">
               <BarChart2 size={15} /> Analytics
             </Link>
-            {/* PDF Export — hover reveals dropdown with two options */}
             <PDFExportButton surveyId={id} surveyTitle={survey.title} />
+            <button
+              onClick={() => setShowDeleteSurvey(true)}
+              className="btn-secondary flex items-center gap-2 text-red-600 hover:bg-red-50 hover:border-red-200 touch-manipulation"
+            >
+              <Trash2 size={15} /> Delete
+            </button>
           </div>
         }
       />
 
-      {/* Stats row */}
-      <div className="grid grid-cols-3 gap-4 mb-6">
-        <div className="card text-center">
-          <p className="text-2xl font-bold text-indigo-600">{survey.SurveyAnalytic?.total_responses ?? 0}</p>
-          <p className="text-sm text-gray-500 mt-1">Responses</p>
+      {/* Stats — 3 cols always, but shrink text on mobile */}
+      <div className="grid grid-cols-3 gap-3 sm:gap-4 mb-6">
+        <div className="card text-center p-4 sm:p-6">
+          <p className="text-xl sm:text-2xl font-bold text-indigo-600">{survey.SurveyAnalytic?.total_responses ?? 0}</p>
+          <p className="text-xs sm:text-sm text-gray-500 mt-1">Responses</p>
         </div>
-        <div className="card text-center">
-          <p className="text-2xl font-bold text-indigo-600">{activeVersion?.Questions?.length ?? 0}</p>
-          <p className="text-sm text-gray-500 mt-1">Questions</p>
+        <div className="card text-center p-4 sm:p-6">
+          <p className="text-xl sm:text-2xl font-bold text-indigo-600">{activeVersion?.Questions?.length ?? 0}</p>
+          <p className="text-xs sm:text-sm text-gray-500 mt-1">Questions</p>
         </div>
-        <div className="card text-center">
+        <div className="card text-center p-4 sm:p-6 flex flex-col items-center justify-center">
           <StatusBadge status={survey.status} />
-          <p className="text-sm text-gray-500 mt-1">Status</p>
+          <p className="text-xs sm:text-sm text-gray-500 mt-1">Status</p>
         </div>
       </div>
 
-      {/* QR + share (published only) */}
+      {/* QR + share */}
       {survey.status === 'published' && (
         <QRPanel surveyId={id} publicLink={publicLink} />
       )}
@@ -319,8 +365,8 @@ export default function SurveyDetailPage() {
               .map((q, i) => (
                 <div key={q.question_id} className="flex gap-3 p-3 bg-gray-50 rounded-xl">
                   <span className="text-sm font-bold text-indigo-600 w-6 flex-shrink-0 mt-0.5">{i + 1}</span>
-                  <div className="flex-1">
-                    <p className="text-sm font-medium text-gray-900">{q.question_text}</p>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-gray-900 break-words">{q.question_text}</p>
                     <div className="flex gap-2 mt-1 flex-wrap">
                       <span className="text-xs text-gray-500 bg-white border border-gray-200 rounded px-1.5 py-0.5">
                         {q.question_type}
@@ -346,8 +392,23 @@ export default function SurveyDetailPage() {
         )}
       </div>
 
-      {/* Responses table */}
       <ResponsesTable surveyId={id} />
+
+      {deleteError && (
+        <div className="fixed bottom-4 right-4 z-50 bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl px-4 py-3 shadow-lg flex items-center gap-3 max-w-sm">
+          <span>{deleteError}</span>
+          <button onClick={() => setDeleteError(null)} className="text-red-400 hover:text-red-600 font-bold leading-none flex-shrink-0">&times;</button>
+        </div>
+      )}
+
+      <ConfirmDialog
+        isOpen={showDeleteSurvey}
+        title="Delete Survey"
+        message="This will permanently delete the survey and all its responses. This cannot be undone."
+        onConfirm={() => deleteSurveyMutation.mutate()}
+        onCancel={() => !deleteSurveyMutation.isPending && setShowDeleteSurvey(false)}
+        loading={deleteSurveyMutation.isPending}
+      />
     </div>
   );
 }
